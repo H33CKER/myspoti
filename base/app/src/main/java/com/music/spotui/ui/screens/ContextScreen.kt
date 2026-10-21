@@ -440,7 +440,22 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
         }
     }
 
+    val density = androidx.compose.ui.platform.LocalDensity.current
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scrolled by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > with(density) { 240.dp.toPx() }
+        }
+    }
+    val animatedTopBarBg by androidx.compose.animation.animateColorAsState(
+        targetValue = if (scrolled) lerp(tint, Color.Black, 0.35f) else Color.Transparent,
+        animationSpec = androidx.compose.animation.core.tween(250),
+        label = "topBarBg"
+    )
+
+    val topBarHeight = 56.dp
+    val playButtonSize = 56.dp
+
     Box(Modifier.fillMaxSize()) {
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         item {
@@ -450,17 +465,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                     .background(Brush.verticalGradient(listOf(lerp(tint, Color.Black, 0.25f), PageBackground)))
                     .statusBarsPadding()
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .clickable { navController.navigateUp() }
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.accessibility_navigate_back), tint = Color.White)
-                }
+                Spacer(Modifier.height(52.dp))
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
                     if (p.type == "liked" || p.type == "liked-artist") LikedCover(Modifier.fillMaxWidth(0.66f).aspectRatio(1f).shadow(16.dp, RoundedCornerShape(4.dp))) else
                     GlideImage(
@@ -665,6 +670,96 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
         // An album: Spotify's "More like this", albums close to its first song.
         if (p.type == "album") item(key = "similar") { SimilarAlbums(navController, p.tracks.firstOrNull()?.spotifyTrackId.orEmpty(), p.uri) }
         item { Spacer(Modifier.height(com.music.spotui.ui.components.bottomBarsSpace())) }
+    }
+    // Sticky header top bar and round play button aligned with bottom border line of top bar
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .align(Alignment.TopCenter)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(animatedTopBarBg)
+                .statusBarsPadding()
+                .height(topBarHeight)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (scrolled) Color.Transparent else Color.Black.copy(alpha = 0.35f))
+                        .clickable { navController.navigateUp() }
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.accessibility_navigate_back),
+                        tint = Color.White
+                    )
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = scrolled,
+                    enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)),
+                    exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200)),
+                    modifier = Modifier.weight(1f).padding(end = 68.dp)
+                ) {
+                    Text(
+                        text = p.name,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = scrolled,
+            enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(250)) +
+                    androidx.compose.animation.scaleIn(initialScale = 0.8f, animationSpec = androidx.compose.animation.core.tween(250)),
+            exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200)) +
+                   androidx.compose.animation.scaleOut(targetScale = 0.8f, animationSpec = androidx.compose.animation.core.tween(200)),
+            modifier = Modifier
+                .statusBarsPadding()
+                .align(Alignment.TopEnd)
+                .offset(x = (-16).dp, y = topBarHeight - (playButtonSize / 2))
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(playButtonSize)
+                    .shadow(8.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(SpotifyGreen)
+                    .pressable(pressedScale = 0.92f) {
+                        when {
+                            isThisContext && playing -> SongPlayer.pause()
+                            isThisContext -> SongPlayer.play()
+                            p.tracks.isNotEmpty() && SmartShuffle.on.value == p.uri -> vm.playSmart(p, null)
+                            p.tracks.isNotEmpty() -> vm.play(p, if (shuffle) p.tracks.random() else sort.apply(p.tracks).first(), sort)
+                        }
+                    }
+            ) {
+                Icon(
+                    painter = painterResource(id = if (isThisContext && playing) R.drawable.ic_playing else R.drawable.play_svgrepo_com),
+                    contentDescription = if (isThisContext && playing) stringResource(R.string.content_description_pause_button) else stringResource(R.string.content_description_play_button),
+                    tint = Color.Black,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
     com.music.spotui.ui.components.FastScrollbar(listState, Modifier.align(Alignment.CenterEnd))
     androidx.compose.material3.SnackbarHost(
