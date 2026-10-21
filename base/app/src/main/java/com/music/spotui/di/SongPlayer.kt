@@ -638,6 +638,14 @@ object SongPlayer {
             burstUpcoming = apiQueue?.let { it.queued + it.nextUp }.orEmpty()
             burstTaps = 1
             pendingSkips = 0
+            val target = burstUpcoming.firstOrNull()
+            if (target != null) {
+                val trackId = trackIdOf(target.uri)
+                markPending(if (target.kind == ItemKind.EPISODE) "" else trackId, target.uri)
+            } else {
+                pendingTrackId = null
+                pendingItemUri = null
+            }
             transport(waitReady = !stateSeen) { api.player.next() }
             return
         }
@@ -658,6 +666,17 @@ object SongPlayer {
         pendingSkips = 0
         // The song [burstTaps] after the one playing at the first tap.
         val target = burstUpcoming.getOrNull(burstTaps - 1)
+        if (target != null) {
+            val trackId = trackIdOf(target.uri)
+            val song = songOf(target)
+            markPending(if (target.kind == ItemKind.EPISODE) "" else trackId, target.uri)
+            boundState?.updateSongState(song.coverUri, song.title, song.singer, true, song.id, 0, song.album)
+            durationMs = target.durationMs.toLong()
+            pushNotification(song, false)
+        } else {
+            pendingTrackId = null
+            pendingItemUri = null
+        }
         transport(waitReady = !stateSeen) { if (target == null) api.player.next() else api.player.skipTo(target) }
     }
     fun previous() { Haptics.click(); if (LocalPlayer.active.value) { LocalPlayer.previous(); return }; intendPlaying(); transport(waitReady = !stateSeen) { api.player.previous() } }
@@ -830,7 +849,6 @@ object SongPlayer {
     fun swipeNext() {
         if (LocalPlayer.active.value) { next(); return }
         _nowPlaying.value.next?.let { n ->
-            markPending(n.spotifyTrackId)
             boundState?.updateSongState(n.coverUri, n.title, n.singer, true, n.id, 0, n.album)
             durationMs = n.durationMs.toLong()
             pushNotification(n, false)
@@ -994,21 +1012,13 @@ object SongPlayer {
     @Volatile private var devicesFreshUntil = 0L
 
     private suspend fun takeBackPlayback() {
-        // The device list as Spotify has it now: the one kept here is only refreshed on a song
-        // change, and after a cold start it does not know a device that took playback before.
-        // But this used to run on EVERY tap, i.e. a server round trip before the song was even
-        // asked for: measured 963 ms from tap to sound against 554 ms for a skip, which takes the
-        // same playback path without this call. The list is read again only once the entry is
-        // older than [DEVICES_FRESH_MS] — a takeover within those seconds is still caught by the
-        // play check (the page does not move, the play is sent again) and by the next read.
-        // Measured (15/10 run): this refresh answers from the page's cache in 8-36 ms, so it is not
-        // what makes a tap slower than a skip (963 vs 554 ms then) — keeping it unconditional keeps
-        // "a device that took playback is pulled back at once" (beta.7 behaviour). The timing stays
-        // in the log because the day it becomes slow, that line says so.
-        devicesFreshUntil = 0L
-        val started = System.currentTimeMillis()
-        kotlinx.coroutines.withTimeoutOrNull(DEVICES_WAIT_MS) { runCatching { api.devices.refresh() } }
-        Log.i(TAG, "device list read in ${System.currentTimeMillis() - started} ms")
+        val now = SystemClock.elapsedRealtime()
+        if (now >= devicesFreshUntil) {
+            devicesFreshUntil = now + DEVICES_FRESH_MS
+            val started = System.currentTimeMillis()
+            kotlinx.coroutines.withTimeoutOrNull(DEVICES_WAIT_MS) { runCatching { api.devices.refresh() } }
+            Log.i(TAG, "device list read in ${System.currentTimeMillis() - started} ms")
+        }
         val active = api.devices.devices.value.firstOrNull { it.active }
         _activeDevice.value = active?.takeIf { !it.local }?.let { ConnectDevice(it.id, it.name, it.type, false, true) }
         val remote = _activeDevice.value ?: return

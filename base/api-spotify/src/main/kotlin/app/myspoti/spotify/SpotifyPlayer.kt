@@ -699,7 +699,7 @@ class SpotifyPlayer(private val bridge: Bridge, private val scope: CoroutineScop
                 // is not waited for: nothing is heard meanwhile, and a page that keeps saying
                 // "buffering" while it plays would leave the song's start muted.
                 withTimeoutOrNull(FADE_BACK_MAX_MS) {
-                    _state.first { it != null && !it.isPaused && (it.item?.uri != from || it.positionMs < 1_500) }
+                    _state.first { it != null && (it.item?.uri != from || !it.isPaused || it.positionMs < 1_500) }
                 }
                 val back = fadeBackTo ?: target
                 // Ends on the page player's own volume: a volume change during the fade is kept.
