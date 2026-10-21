@@ -571,17 +571,41 @@ object SongPlayer {
      */
     /** [order]: the context's track uris in the order to play them (a sorted playlist). */
     fun playSong(song: String, context: Context? = null, contextUri: String? = null, order: List<String>? = null, positionMs: Long? = null) {
-        // Data saver on mobile data: Spotify can't stream, only downloads and Local Files play.
-        if (com.music.spotui.data.DataSaver.active) {
-            main.post {
-                android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.data_saver_blocked, android.widget.Toast.LENGTH_SHORT).show()
-            }
-            return
-        }
-        LocalPlayer.stop()
+        val appCtx = Graph.app
         val episodeId = song.removePrefix("episode:").takeIf { song.startsWith("episode:") }
         val trackId = episodeId ?: spotifyTrackIdForPlayback(song) ?: return
         val itemUri = if (episodeId != null) "spotify:episode:$episodeId" else SPOTIFY_TRACK_PREFIX + trackId
+
+        val isOffline = !com.music.spotui.data.offline.OfflineStore.isOnline(appCtx) || com.music.spotui.data.DataSaver.active
+        val offlineTrack = com.music.spotui.data.offline.OfflineStore.tracks[trackId]
+        val cachedTrack = com.music.spotui.data.cache.PlaybackCacheStore.cachedTracks[trackId]
+
+        if (isOffline || offlineTrack != null || cachedTrack != null) {
+            val primaryLocal = offlineTrack?.let(com.music.spotui.data.offline.OfflineStore::toLocalTrack)
+                ?: cachedTrack?.let(com.music.spotui.data.cache.PlaybackCacheStore::toLocalTrack)
+
+            if (primaryLocal != null) {
+                val localQueue = mutableListOf(primaryLocal)
+                order?.forEach { uri ->
+                    val id = uri.removePrefix("spotify:track:")
+                    if (id != trackId) {
+                        val off = com.music.spotui.data.offline.OfflineStore.tracks[id]?.let(com.music.spotui.data.offline.OfflineStore::toLocalTrack)
+                        val cac = com.music.spotui.data.cache.PlaybackCacheStore.cachedTracks[id]?.let(com.music.spotui.data.cache.PlaybackCacheStore::toLocalTrack)
+                        val loc = off ?: cac
+                        if (loc != null) localQueue.add(loc)
+                    }
+                }
+                LocalPlayer.play(localQueue, 0, context = contextUri ?: context?.let { "Cache / Local" })
+                return
+            } else if (isOffline) {
+                main.post {
+                    android.widget.Toast.makeText(appCtx, app.myspoti.engine.R.string.data_saver_blocked, android.widget.Toast.LENGTH_SHORT).show()
+                }
+                return
+            }
+        }
+
+        LocalPlayer.stop()
         val ctx = contextUri ?: contextRegistry[song]
         markPending(if (episodeId != null) "" else trackId, itemUri)
         transport { isLatest ->

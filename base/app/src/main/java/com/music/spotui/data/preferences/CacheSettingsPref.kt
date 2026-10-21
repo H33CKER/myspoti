@@ -18,10 +18,10 @@ object CacheSettingsPref {
     var preloadingEnabled by mutableStateOf(prefs(Graph.app).getBoolean(KEY_PRELOADING_ENABLED, true))
         private set
 
-    var preloadCount by mutableStateOf(prefs(Graph.app).getInt(KEY_PRELOAD_COUNT, 2).coerceIn(1, 3))
+    var preloadCount by mutableStateOf(prefs(Graph.app).getInt(KEY_PRELOAD_COUNT, 2).coerceIn(1, 10))
         private set
 
-    /** Cache cap in MB: 500, 1000, 2000, or 0 for Unlimited. Default: 1000 MB. */
+    /** Cache cap in MB: 500, 1000, 2000, 5000, or 0 for Unlimited. Default: 1000 MB. */
     var cacheCapMb by mutableStateOf(prefs(Graph.app).getInt(KEY_CACHE_CAP_MB, 1000))
         private set
 
@@ -31,7 +31,7 @@ object CacheSettingsPref {
     }
 
     fun setCount(c: Context, count: Int) {
-        val v = count.coerceIn(1, 3)
+        val v = count.coerceIn(1, 10)
         preloadCount = v
         prefs(c).edit().putInt(KEY_PRELOAD_COUNT, v).apply()
     }

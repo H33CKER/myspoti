@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -471,9 +472,12 @@ private fun PreloadDepthRow() {
         )
         Row(
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(top = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp)
+                .horizontalScroll(rememberScrollState()),
         ) {
-            for (count in listOf(1, 2, 3)) {
+            for (count in listOf(1, 2, 3, 5, 8, 10)) {
                 val selected = pref.preloadCount == count
                 Text(
                     "$count ${if (count == 1) "track" else "tracks"}",
@@ -503,9 +507,18 @@ private fun CacheCapRow() {
         )
         Row(
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(top = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp)
+                .horizontalScroll(rememberScrollState()),
         ) {
-            val options = listOf(500 to "500 MB", 1000 to "1 GB", 2000 to "2 GB", 0 to "Unlimited")
+            val options = listOf(
+                500 to "500 MB",
+                1000 to "1 GB",
+                2000 to "2 GB",
+                5000 to "5 GB",
+                0 to "Unlimited",
+            )
             for ((mb, label) in options) {
                 val selected = pref.cacheCapMb == mb
                 Text(

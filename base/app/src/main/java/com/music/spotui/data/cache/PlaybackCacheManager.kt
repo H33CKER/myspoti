@@ -37,7 +37,39 @@ object PlaybackCacheManager {
         if (toPreload.isEmpty()) return
 
         scope.launch {
-            OfflineDownloader.enqueue(toPreload, auto = true)
+            val verified = com.music.spotui.data.preferences.hasSpotiflacSession(Graph.app)
+            if (verified) {
+                OfflineDownloader.enqueue(toPreload, auto = true)
+            } else {
+                for (song in toPreload) {
+                    val id = song.spotifyTrackId
+                    if (id.isBlank() || OfflineStore.isDownloaded(id) || PlaybackCacheStore.isCached(id)) continue
+                    runCatching {
+                        val hit = com.music.spotui.video.YouTubeSource.findSong(song.title, song.singer, song.durationMs.toLong())
+                            ?: com.music.spotui.video.YouTubeSource.findAudio(song.title, song.singer, song.durationMs.toLong())
+                        if (hit != null) {
+                            val audioFile = PlaybackCacheStore.createCacheFile(id)
+                            com.music.spotui.video.MusicVideoController.downloadAudioFile(hit.url, audioFile)
+                            if (audioFile.isFile && audioFile.length() > 10_000) {
+                                PlaybackCacheStore.addTrack(
+                                    CachedTrack(
+                                        trackId = id,
+                                        title = song.title,
+                                        artist = song.singer,
+                                        fileName = audioFile.name,
+                                        bytes = audioFile.length(),
+                                        cachedAt = System.currentTimeMillis()
+                                    )
+                                )
+                            } else {
+                                audioFile.delete()
+                            }
+                        }
+                    }.onFailure {
+                        android.util.Log.w("PlaybackCache", "Failed to preload $id (${song.title}): ${it.message}")
+                    }
+                }
+            }
         }
     }
 

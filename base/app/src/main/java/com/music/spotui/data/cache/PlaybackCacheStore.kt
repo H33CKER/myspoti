@@ -104,6 +104,24 @@ object PlaybackCacheStore {
         return if (f.isFile) f else null
     }
 
+    fun createCacheFile(trackId: String): File {
+        if (!::cacheDir.isInitialized) {
+            cacheDir = File(Graph.app.cacheDir, "playback_cache")
+            cacheDir.mkdirs()
+        }
+        return File(cacheDir, "${trackId}.m4a")
+    }
+
+    fun toLocalTrack(c: CachedTrack): com.music.spotui.data.local.LocalTrack = com.music.spotui.data.local.LocalTrack(
+        id = ("cache_" + c.trackId).hashCode().toLong(),
+        uri = android.net.Uri.fromFile(File(cacheDir, c.fileName)),
+        title = c.title.ifBlank { "Preloaded Track" },
+        artist = c.artist,
+        album = "",
+        durationMs = 0L,
+        artUri = android.net.Uri.EMPTY,
+    )
+
     fun addTrack(t: CachedTrack) {
         // Cancel any pending purge if track is re-added
         pendingPurges.remove(t.trackId)?.cancel()
