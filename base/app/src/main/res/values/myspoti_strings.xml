@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Myspoti's own texts (English default, French, Italian). -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="welcome_tagline">Your music, with synced lyrics and official music videos.</string>
     <string name="welcome_login">Log in with Spotify</string>
     <string name="welcome_privacy">You sign in on Spotify\'s own page. Myspoti never sees your password.</string>
@@ -237,6 +237,15 @@
     <string name="settings_detail">Sound quality, downloads, data, battery and language</string>
     <string name="settings_section_playback">Playback</string>
     <string name="settings_section_downloads">Downloads</string>
+    <string name="settings_section_caching" tools:ignore="MissingTranslation">Playback Caching</string>
+    <string name="settings_preloading_title" tools:ignore="MissingTranslation">Queue Preloading</string>
+    <string name="settings_preloading_detail" tools:ignore="MissingTranslation">Proactively downloads upcoming tracks in the background for gapless playback during network dropouts.</string>
+    <string name="settings_preload_depth_title" tools:ignore="MissingTranslation">Preload Depth</string>
+    <string name="settings_preload_depth_detail" tools:ignore="MissingTranslation">Number of upcoming queue tracks to keep pre-cached.</string>
+    <string name="settings_cache_cap_title" tools:ignore="MissingTranslation">Cache Storage Cap</string>
+    <string name="settings_cache_cap_detail" tools:ignore="MissingTranslation">Maximum local storage allocated for playback caching.</string>
+    <string name="settings_clear_cache_title" tools:ignore="MissingTranslation">Clear Playback Cache</string>
+    <string name="settings_clear_cache_detail" tools:ignore="MissingTranslation">Currently using %1$s</string>
     <string name="settings_section_data">Data and battery</string>
     <string name="settings_section_display">Display and language</string>
     <string name="settings_section_app">App</string>
